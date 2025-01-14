@@ -1,0 +1,144 @@
+import mysql
+from mysql.connector.pooling import PooledMySQLConnection
+from typing import List, Dict, Any
+
+from db import execute_query
+from logger import logger
+
+
+def add_data(connection: PooledMySQLConnection,  query_result: List[Dict[str, Any]], category: str, index_column: dict[str:str]):
+    if "article" not in index_column and "brand" not in index_column:
+        logger.error("Словарь не содержит ключи 'article' и 'brand'.")
+
+    category_id = add_or_get_category_id(connection, category)
+
+    row = query_result[0]
+    print(row)
+    article = row[index_column["article"]]
+    brand = row[index_column["brand"]]
+
+    product_id = add_or_get_product_id(connection, article, brand, category_id)
+
+    try:
+        for key, value in row.items():
+            if value:
+                add_or_get_attribute_id(connection, product_id, key, value)
+        connection.commit()
+    except:
+        connection.rollback()
+
+
+
+
+def add_or_get_attribute_id(
+    connection: PooledMySQLConnection,
+    product_id: int,
+    attribute_name: str,
+    attribute_value: str = None
+):
+    # Запрос для поиска атрибута
+    select_query = f"""
+        SELECT Id 
+        FROM y 
+        WHERE ProductId = {product_id} 
+        AND AttributeName = '{attribute_name}' 
+        AND AttributeValue = '{attribute_value if attribute_value else 'NULL'}'
+    """
+
+    # Пытаемся найти существующий атрибут
+    result = execute_query(connection, select_query)
+
+    if result:  # Если атрибут найден
+        return result[0]["Id"]
+    else:
+        # Запрос для добавления атрибута
+        insert_query = f"""
+            INSERT INTO Attributes (ProductId, AttributeName, AttributeValue) 
+            VALUES ({product_id}, '{attribute_name}', {f"'{attribute_value}'" if attribute_value else 'NULL'})
+        """
+        try:
+            # Вставляем новый атрибут
+            execute_query(connection, insert_query)
+            logger.warning(f"Добавлен новый атрибут '{attribute_name}' со значением '{attribute_value}' для продукта с Id {product_id}")
+
+            # Получаем Id только что добавленного атрибута
+            result = execute_query(connection, select_query)
+            if result:
+                return result[0]["Id"]
+            else:
+                logger.error(f"Не удалось получить Id для атрибута '{attribute_name}' со значением '{attribute_value}' для продукта с Id {product_id}")
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"Ошибка при добавлении атрибута '{attribute_name}' для продукта с Id {product_id}: {err}")
+            return None
+
+
+def add_or_get_product_id(
+        connection: PooledMySQLConnection,
+        article: str,
+        brand: str,
+        category_id: int = None
+    ):
+    select_query = f"""
+        SELECT Id 
+        FROM Products 
+        WHERE Article = '{article}' AND Brand = '{brand}'
+    """
+
+    # Пытаемся найти существующий продукт
+    result = execute_query(connection, select_query)
+
+    if result:  # Если продукт найден
+        return result[0]["Id"]
+    else:
+        # Запрос для добавления продукта
+        insert_query = f"""
+            INSERT INTO Products (Article, Brand, CategoryId) 
+            VALUES ('{article}', '{brand}', {category_id if category_id else 'NULL'})
+        """
+        try:
+            # Вставляем новый продукт
+            execute_query(connection, insert_query)
+            connection.commit()  # Подтверждаем изменения
+            logger.warning(f"Добавлен новый продукт '{article}' бренда '{brand}'")
+
+            # Получаем Id только что добавленного продукта
+            result = execute_query(connection, select_query)
+            if result:
+                return result[0]["Id"]
+            else:
+                logger.error(f"Не удалось получить Id для продукта '{article}' бренда '{brand}'")
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"Ошибка при добавлении продукта '{article}' бренда '{brand}': {err}")
+            return None
+
+
+def add_or_get_category_id(connection: PooledMySQLConnection, category_name: str):
+    # Параметризованный запрос для поиска категории
+    select_query = f"SELECT Id FROM Categories WHERE Name = '{category_name}'"
+
+    # Пытаемся найти существующую категорию
+    result = execute_query(connection, select_query)
+
+    if result:  # Если категория найдена
+        return result[0]["Id"]
+    else:
+        # Параметризованный запрос для добавления категории
+        insert_query = f"INSERT INTO Categories (Name) VALUES ('{category_name}')"
+        try:
+            # Вставляем новую категорию
+            execute_query(connection, insert_query)
+            connection.commit()  # Подтверждаем изменения
+            logger.warning(f"Добавлена новая категория '{category_name}'")
+
+            # Получаем Id только что добавленной категории
+            result = execute_query(connection, select_query)
+            if result:
+                return result[0]["Id"]
+            else:
+                logger.error(f"Не удалось получить Id для категории '{category_name}'")
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"Ошибка при добавлении категории '{category_name}': {err}")
+            return None
