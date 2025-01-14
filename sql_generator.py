@@ -15,10 +15,10 @@ def generate_with_sql(group_patterns: dict[str, list[str]]):
 
     for group_name, patterns in group_patterns.items():
 
-        sql += f"{group_name} AS (\n"
+        sql += f"{group_name.replace(' ', '_')} AS (\n"
         for i, pattern in enumerate(patterns):
             if i == 0:
-                sql += f"    SELECT '{pattern}' AS {group_name}\n"
+                sql += f"    SELECT '{pattern}' AS {group_name.replace(' ', '_')}\n"
             else:
                 sql += f"    UNION ALL SELECT '{pattern}'\n"
         sql += "),\n"
@@ -55,25 +55,25 @@ def generate_sql(table_name: str, search_column: str, search_term: str, group_pa
 
     if special_flags:
         for special_flag in special_flags:
-            sql += f"JOIN {special_flag} {special_flag}\n"
-            sql += f"\t\tON {search_column} REGEXP {special_flag}.{special_flag}\n"
+            sql += f"JOIN {special_flag.replace(' ', '_')} {special_flag.replace(' ', '_')}\n"
+            sql += f"\t\tON {search_column.replace(' ', '_')} REGEXP {special_flag.replace(' ', '_')}.{special_flag.replace(' ', '_')}\n"
 
     sql += f"WHERE LOWER({search_column}) LIKE LOWER('%{search_term}%');"
 
-    print(sql)
+    return sql
 
 table_name = "MNK.R77B00"
 search_column = "Наименование"
 search_term = "Колодки тормозные"
 group_patterns = {
-    'Место_установки': [r'задние', r'передние'],
-    'Транспортные_средства': [r'TOYOTA', r'Toyota', r'LEXUS', r'CAMRY', r'RAV4',
+    'Место установки': [r'задние', r'передние'],
+    'Транспортные средства': [r'TOYOTA', r'Toyota', r'LEXUS', r'CAMRY', r'RAV4',
                               r'MARK II', r'CALDINA', r'Nissan', r'SUBARU', r'MITSUBISHI',
                               r'MAZDA', r'SUZUKI'],
     'Партномер': [r'[0-9a-zA-Zа-яА-Я-]+$'],
     'Тип': [r'барабанные', r'дисковые'],
     'Год': [r'[0-9]{2}-[0-9]*']
 }
-special_flags = ['Место_установки', 'Транспортные_средства']
+special_flags = ['Место установки', 'Транспортные средства']
 
 generate_sql(table_name, search_column, search_term, group_patterns, special_flags)
