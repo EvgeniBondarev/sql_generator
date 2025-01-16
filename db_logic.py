@@ -12,15 +12,6 @@ def add_data(connection: PooledMySQLConnection,  query_result: List[Dict[str, An
 
     category_id = add_or_get_category_id(connection, category)
 
-    import time
-
-    total_rows = len(query_result)  # Общее количество строк
-    completed_count = 0  # Счётчик выполненных операций
-    start_time = time.time()  # Время начала выполнения всего цикла
-
-    for row in query_result:
-        iteration_start_time = time.time()  # Время начала выполнения одной итерации
-
         article = row[index_column["article"]]
         brand = row[index_column["brand"]]
 
@@ -31,22 +22,10 @@ def add_data(connection: PooledMySQLConnection,  query_result: List[Dict[str, An
                 if value:
                     add_or_get_attribute_id(connection, product_id, key, value)
             connection.commit()
-            completed_count += 1
         except:
             connection.rollback()
 
-        # Расчёт времени выполнения одной итерации
-        iteration_time = time.time() - iteration_start_time
 
-        remaining_count = total_rows - completed_count  # Подсчёт оставшихся записей
-        logger.info(
-            f"{article}/{brand} | Выполнено: {completed_count} | Осталось: {remaining_count} | "
-            f"Время итерации: {iteration_time:.2f} сек."
-        )
-
-    # Расчёт общего времени выполнения
-    total_time = time.time() - start_time
-    logger.info(f"Общее время выполнения: {total_time:.2f} сек.")
 
 
 def add_or_get_attribute_id(
@@ -57,25 +36,12 @@ def add_or_get_attribute_id(
 ):
     # Запрос для поиска атрибута
     select_query = f"""
-        SELECT * 
-        FROM Attributes 
         WHERE ProductId = {product_id} 
         AND AttributeName = '{attribute_name}'
     """
     # Пытаемся найти существующий атрибут
     result = execute_query(connection, select_query)
 
-    if result:
-        if str(result[0]["AttributeValue"]) != str(attribute_value):
-            update_query = f"""
-                    UPDATE Attributes
-                    SET AttributeValue = '{attribute_value}'
-                    WHERE Id = {product_id};
-                    """
-
-            execute_query(connection, update_query)
-            print(str(result[0]["AttributeValue"]), str(attribute_value))
-            logger.warning(f"Значение атрибута '{attribute_value}' обновлено для Id = {result[0]["Id"]}")
         return result[0]["Id"]
     else:
         # Запрос для добавления атрибута
