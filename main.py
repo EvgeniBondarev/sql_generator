@@ -1,8 +1,10 @@
+#pip install -r requirements.txt
+
 import pandas as pd
-pd.set_option('display.max_columns', None)  # Показывать все столбцы
-pd.set_option('display.width', 0)          # Устанавливать ширину вывода автоматически
-pd.set_option('display.colheader_justify', 'center')  # Выравнивание заголовков колонок
-pd.set_option('display.max_colwidth', None)  # Не обрезать содержимое ячеек
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 0)
+pd.set_option('display.colheader_justify', 'center')
+pd.set_option('display.max_colwidth', None)
 
 from db import create_connection, execute_query
 from db_logic import add_data
@@ -28,6 +30,7 @@ if __name__ == "__main__":
     special_flags = ['Место установки', 'Транспортные средства']
 
     sql = generate_sql(table_name, search_column, search_term, group_patterns, special_flags)
+    print(sql)
 
     query_result = execute_query(connection, sql)
 
