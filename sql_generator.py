@@ -62,18 +62,3 @@ def generate_sql(table_name: str, search_column: str, search_term: str, group_pa
 
     return sql
 
-table_name = "MNK.R77B00"
-search_column = "Наименование"
-search_term = "Колодки тормозные"
-group_patterns = {
-    'Место установки': [r'задние', r'передние'],
-    'Транспортные средства': [r'TOYOTA', r'Toyota', r'LEXUS', r'CAMRY', r'RAV4',
-                              r'MARK II', r'CALDINA', r'Nissan', r'SUBARU', r'MITSUBISHI',
-                              r'MAZDA', r'SUZUKI'],
-    'Партномер': [r'[0-9a-zA-Zа-яА-Я-]+$'],
-    'Тип': [r'барабанные', r'дисковые'],
-    'Год': [r'[0-9]{2}-[0-9]*']
-}
-special_flags = ['Место установки', 'Транспортные средства']
-
-generate_sql(table_name, search_column, search_term, group_patterns, special_flags)

@@ -1,16 +1,28 @@
 import mysql
 from mysql.connector.pooling import PooledMySQLConnection
 from typing import List, Dict, Any
+import time
 
 from db import execute_query
 from logger import logger
 
+# Переменные для названий таблиц
+TABLE_CATEGORIES = "Py_Categories"
+TABLE_PRODUCTS = "Py_Products"
+TABLE_ATTRIBUTES = "Py_Attributes"
 
-def add_data(connection: PooledMySQLConnection,  query_result: List[Dict[str, Any]], category: str, index_column: dict[str:str]):
+def add_data(connection: PooledMySQLConnection, query_result: List[Dict[str, Any]], category: str, index_column: dict[str:str]):
     if "article" not in index_column and "brand" not in index_column:
         logger.error("Словарь не содержит ключи 'article' и 'brand'.")
 
     category_id = add_or_get_category_id(connection, category)
+
+    total_rows = len(query_result)  # Общее количество строк
+    completed_count = 0  # Счётчик выполненных операций
+    start_time = time.time()  # Время начала выполнения всего цикла
+
+    for row in query_result:
+        iteration_start_time = time.time()  # Время начала выполнения одной итерации
 
         article = row[index_column["article"]]
         brand = row[index_column["brand"]]
@@ -25,7 +37,18 @@ def add_data(connection: PooledMySQLConnection,  query_result: List[Dict[str, An
         except:
             connection.rollback()
 
+        completed_count += 1
+        iteration_time = time.time() - iteration_start_time
 
+        remaining_count = total_rows - completed_count  # Подсчёт оставшихся записей
+        logger.info(
+            f"{article}/{brand} | Выполнено: {completed_count} | Осталось: {remaining_count} | "
+            f"Время итерации: {iteration_time:.2f} сек."
+        )
+
+    # Расчёт общего времени выполнения
+    total_time = time.time() - start_time
+    logger.info(f"Общее время выполнения: {total_time:.2f} сек.")
 
 
 def add_or_get_attribute_id(
@@ -36,22 +59,46 @@ def add_or_get_attribute_id(
 ):
     # Запрос для поиска атрибута
     select_query = f"""
+        SELECT * 
+        FROM {TABLE_ATTRIBUTES} 
         WHERE ProductId = {product_id} 
         AND AttributeName = '{attribute_name}'
+        AND LOWER(AttributeValue) = LOWER('{attribute_value}')
     """
+
     # Пытаемся найти существующий атрибут
     result = execute_query(connection, select_query)
 
+    if result:
+
+        db_value = result[0]["AttributeValue"]
+        if str(db_value).strip() != str(attribute_value).strip():
+            print( str(attribute_value).strip())
+            print(result)
+            update_query = f"""
+                    UPDATE {TABLE_ATTRIBUTES}
+                    SET AttributeValue = '{attribute_value}'
+                    WHERE Id = {result[0]["Id"]};
+                """
+
+            print(f"Значение атрибута '{attribute_name}' для продукта с Id {product_id} обновлено:")
+            print(f"Старое значение: '{db_value}'")
+            print(f"Новое значение: '{attribute_value}'")
+            is_add_data = input("Обновить значение [Y/N]")
+            if is_add_data == 'Y' or is_add_data == 'y' or is_add_data == 'н' or is_add_data == 'Н':
+                result = execute_query(connection, update_query)
+                print(f"Значение '{attribute_value}' обновлено")
+
         return result[0]["Id"]
     else:
-        # Запрос для добавления атрибута
         insert_query = f"""
-            INSERT INTO Attributes (ProductId, AttributeName, AttributeValue) 
+            INSERT INTO {TABLE_ATTRIBUTES} (ProductId, AttributeName, AttributeValue) 
             VALUES ({product_id}, '{attribute_name}', {f"'{attribute_value}'" if attribute_value else 'NULL'})
         """
         try:
             # Вставляем новый атрибут
             execute_query(connection, insert_query)
+            connection.commit()  # Подтверждаем изменения
             logger.warning(f"Добавлен новый атрибут '{attribute_name}' со значением '{attribute_value}' для продукта с Id {product_id}")
 
             # Получаем Id только что добавленного атрибута
@@ -74,7 +121,7 @@ def add_or_get_product_id(
     ):
     select_query = f"""
         SELECT Id 
-        FROM Products 
+        FROM {TABLE_PRODUCTS} 
         WHERE Article = '{article}' AND Brand = '{brand}'
     """
 
@@ -86,7 +133,7 @@ def add_or_get_product_id(
     else:
         # Запрос для добавления продукта
         insert_query = f"""
-            INSERT INTO Products (Article, Brand, CategoryId) 
+            INSERT INTO {TABLE_PRODUCTS} (Article, Brand, CategoryId) 
             VALUES ('{article}', '{brand}', {category_id if category_id else 'NULL'})
         """
         try:
@@ -109,7 +156,7 @@ def add_or_get_product_id(
 
 def add_or_get_category_id(connection: PooledMySQLConnection, category_name: str):
     # Параметризованный запрос для поиска категории
-    select_query = f"SELECT Id FROM Categories WHERE Name = '{category_name}'"
+    select_query = f"SELECT Id FROM {TABLE_CATEGORIES} WHERE Name = '{category_name}'"
 
     # Пытаемся найти существующую категорию
     result = execute_query(connection, select_query)
@@ -118,7 +165,7 @@ def add_or_get_category_id(connection: PooledMySQLConnection, category_name: str
         return result[0]["Id"]
     else:
         # Параметризованный запрос для добавления категории
-        insert_query = f"INSERT INTO Categories (Name) VALUES ('{category_name}')"
+        insert_query = f"INSERT INTO {TABLE_CATEGORIES} (Name) VALUES ('{category_name}')"
         try:
             # Вставляем новую категорию
             execute_query(connection, insert_query)

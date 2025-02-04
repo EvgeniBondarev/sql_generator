@@ -1,3 +1,6 @@
 .env
 .venv
 app.log
+./data_frame
+./sql
+.config.ini

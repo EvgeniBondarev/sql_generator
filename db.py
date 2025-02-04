@@ -1,9 +1,10 @@
 import mysql.connector
+from typing import Optional, List, Dict
 
 from logger import logger
 
 
-def create_connection(host, user, password, database):
+def create_connection(host: str, user: str, password: str, database: str) -> Optional[mysql.connector.MySQLConnection]:
     """Функция для создания подключения к базе данных MySQL"""
     try:
         connection = mysql.connector.connect(
@@ -17,12 +18,12 @@ def create_connection(host, user, password, database):
         logger.error(f"Ошибка подключения: {err}")
         return None
 
-def execute_query(connection, query):
+
+def execute_query(connection: mysql.connector.MySQLConnection, query: str) -> Optional[List[Dict[str, any]]]:
     """Функция для выполнения SQL-запросов и возврата результатов"""
     cursor = connection.cursor(dictionary=True)  # Используем dictionary для удобства работы с результатами
     try:
         cursor.execute(query)
-
         result = cursor.fetchall()
         return result
     except mysql.connector.Error as err:
