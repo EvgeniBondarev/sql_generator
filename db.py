@@ -1,17 +1,22 @@
 import mysql.connector
 from typing import Optional, List, Dict
 
+from mysql.connector.abstracts import MySQLConnectionAbstract
+from mysql.connector.pooling import PooledMySQLConnection
+
 from logger import logger
 
 
-def create_connection(host: str, user: str, password: str, database: str) -> Optional[mysql.connector.MySQLConnection]:
+def create_connection(host: str, user: str, password: str, database: str) -> PooledMySQLConnection | MySQLConnectionAbstract | None:
     """Функция для создания подключения к базе данных MySQL"""
     try:
         connection = mysql.connector.connect(
             host=host,
             user=user,
             password=password,
-            database=database
+            database=database,
+            ssl_disabled=True,
+            use_pure=True
         )
         return connection
     except mysql.connector.Error as err:

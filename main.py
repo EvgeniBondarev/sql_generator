@@ -13,6 +13,7 @@ from config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
 from logger import logger
 
 
+
 class SQLGeneratorApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -31,6 +32,7 @@ class SQLGeneratorApp(QWidget):
         form_layout = QFormLayout()
         group_layout = QVBoxLayout()
         special_flags_layout = QVBoxLayout()
+        special_key_layout = QHBoxLayout()
         button_layout = QHBoxLayout()
 
         # Имя таблицы
@@ -78,6 +80,12 @@ class SQLGeneratorApp(QWidget):
         special_flags_layout.addWidget(QLabel("Специальные флаги:"))
         special_flags_layout.addWidget(self.special_flags_input)
 
+        # Специальные ключи
+        special_key_box = QGroupBox("Специальные ключи")
+        special_key_box.setLayout(special_key_layout)
+        self.special_key_lable = QLabel(self)
+        special_key_layout.addWidget(self.special_key_lable)
+
         # Кнопки
         generate_sql_btn = QPushButton("Сгенерировать SQL", self)
         generate_sql_btn.clicked.connect(self.generate)
@@ -89,7 +97,7 @@ class SQLGeneratorApp(QWidget):
         button_layout.addWidget(self.add_data_btn)
 
         # Кнопка загрузки JSON
-        load_preset_btn = QPushButton("Загрузить Preset", self)
+        load_preset_btn = QPushButton("Загрузить пресет", self)
         load_preset_btn.clicked.connect(self.load_preset)
         button_layout.addWidget(load_preset_btn)
 
@@ -103,6 +111,7 @@ class SQLGeneratorApp(QWidget):
         layout.addLayout(form_layout)
         layout.addWidget(group_box)
         layout.addWidget(special_flags_box)
+        layout.addWidget(special_key_box)
         layout.addLayout(button_layout)
         layout.addWidget(self.result_area)
 
@@ -152,10 +161,13 @@ class SQLGeneratorApp(QWidget):
         connection = None
         try:
             connection = create_connection(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)
+            logger.info("Connect:")
             logger.info(DB_HOST)
             logger.info(DB_USER)
             logger.info('*' * len(DB_PASSWORD))
             logger.info(DB_NAME)
+
+
             self.update_special_flags()
 
             sql = generate_sql(
@@ -226,11 +238,22 @@ class SQLGeneratorApp(QWidget):
                 with open(file_path, 'r', encoding='utf-8') as file:
                     preset = json.load(file)
 
+                if "keys" not in preset or not all(k in preset["keys"] for k in {"article": "Артикул", "brand": "Бренд"}):
+                    error_message = "Ошибка: отсутствуют обязательные ключи 'article' и 'brand' в пресете."
+                    logger.error(error_message)
+                    QMessageBox.information(None, "Ошибка", error_message)
+                    return None
+
+
                 # Заполнение полей
                 self.table_name_input.setText(preset.get("table_name", ""))
                 self.search_column_input.setText(preset.get("search_column", ""))
                 self.search_term_input.setText(preset.get("search_term", ""))
                 self.keys = preset.get("keys", {})
+
+                keys = preset.get("keys", {})
+                text = ", ".join(keys.values()) if isinstance(keys, dict) else str(keys)
+                self.special_key_lable.setText(text)
 
                 # Групповые шаблоны
                 self.group_patterns = preset.get("group_patterns", {})
