@@ -3,13 +3,9 @@ from mysql.connector.pooling import PooledMySQLConnection
 from typing import List, Dict, Any
 import time
 
+from config import TABLE_ATTRIBUTES, TABLE_PRODUCTS, TABLE_CATEGORIES
 from db import execute_query
 from logger import logger
-
-# Переменные для названий таблиц
-TABLE_CATEGORIES = "Py_Categories"
-TABLE_PRODUCTS = "Py_Products"
-TABLE_ATTRIBUTES = "Py_Attributes"
 
 def add_data(connection: PooledMySQLConnection, query_result: List[Dict[str, Any]], category: str, index_column: dict[str:str]):
     if "article" not in index_column and "brand" not in index_column:
